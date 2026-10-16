@@ -125,11 +125,12 @@ defina `FUTSCORES_HOST=0.0.0.0`.
    Remove-Item Env:DATABASE_URL
    ```
 
-   A importação cria o esquema no destino, aborta se encontrar dados já
-   existentes e não altera nem apaga `data/futscores.sqlite3`. Se a importação
-   falhar, corrija a causa e use um banco vazio antes de tentar novamente.
-   Os tokens de sessão não são migrados por segurança; todos os usuários farão
-   login novamente após a migração.
+   A importação cria o esquema no destino e não altera nem apaga
+   `data/futscores.sqlite3`. Se a primeira requisição já inicializou o app no
+   PostgreSQL, o importador remove apenas a conta admin e os times padrão quando
+   confirma que o banco contém exclusivamente esse bootstrap intacto; qualquer
+   outro dado faz a importação abortar. Os tokens de sessão não são migrados por
+   segurança; todos os usuários farão login novamente após a migração.
 3. Importe este projeto na Vercel. Mantenha `vercel.json` como arquivo de
    configuração e defina o diretório raiz do projeto como a pasta que contém
    `app.py`, `api/`, `static/` e `templates/`.

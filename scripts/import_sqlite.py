@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sqlite3
 import sys
 from pathlib import Path
+from typing import Mapping, Sequence
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -24,6 +26,48 @@ TABLES = (
 )
 IDENTITY_TABLES = ("users", "rounds", "matches", "teams")
 EMPTY_CHECK_TABLES = (*TABLES, "sessions")
+
+
+def is_pristine_app_bootstrap(
+    existing: dict[str, int],
+    users: Sequence[Mapping[str, object]],
+    settings: Sequence[Mapping[str, object]],
+    teams: Sequence[Mapping[str, object]],
+) -> bool:
+    expected_counts = {table: 0 for table in EMPTY_CHECK_TABLES}
+    expected_counts.update(
+        users=1,
+        teams=len(app.TEAMS),
+        app_settings=1,
+    )
+    if existing != expected_counts:
+        return False
+
+    expected_admin_email = os.environ.get(
+        "FUTSCORES_ADMIN_EMAIL", "admin@futscores.com"
+    ).strip().lower()
+    if len(users) != 1:
+        return False
+    admin = users[0]
+    if (
+        admin["name"] != "Administrador"
+        or admin["email"] != expected_admin_email
+        or admin["team"] != "Brasil"
+        or admin["role"] != "admin"
+        or admin["is_blocked"] != 0
+    ):
+        return False
+
+    if (
+        len(settings) != 1
+        or settings[0]["key"] != "teams_seeded"
+        or settings[0]["value"] != "1"
+    ):
+        return False
+
+    return [(team["name"], team["crest_url"]) for team in teams] == [
+        (name, None) for name in app.TEAMS
+    ]
 
 
 def main() -> int:
@@ -67,10 +111,29 @@ def main() -> int:
             }
             nonempty = [table for table, count in existing.items() if count]
             if nonempty:
-                raise RuntimeError(
-                    "O banco de destino não está vazio; importação cancelada "
-                    f"para evitar sobrescrever dados: {', '.join(nonempty)}"
+                bootstrap = is_pristine_app_bootstrap(
+                    existing,
+                    destination.execute(
+                        "SELECT name, email, team, role, is_blocked FROM users ORDER BY id"
+                    ).fetchall(),
+                    destination.execute(
+                        "SELECT key, value FROM app_settings ORDER BY key"
+                    ).fetchall(),
+                    destination.execute(
+                        "SELECT name, crest_url FROM teams ORDER BY id"
+                    ).fetchall(),
                 )
+                if not bootstrap:
+                    raise RuntimeError(
+                        "O banco de destino não está vazio; importação cancelada "
+                        f"para evitar sobrescrever dados: {', '.join(nonempty)}"
+                    )
+                print(
+                    "Estado inicial intacto do app detectado; removendo apenas "
+                    "a conta admin e os times de bootstrap."
+                )
+                for table in ("users", "teams", "app_settings"):
+                    destination.execute(f"DELETE FROM {table}")
 
             for table in TABLES:
                 columns = [
