@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from threading import Lock
 from urllib.parse import parse_qs, urlsplit
 
@@ -17,7 +18,11 @@ class handler(FutScoresHandler):
         if not _initialized:
             with _init_lock:
                 if not _initialized:
-                    init_database()
+                    try:
+                        init_database()
+                    except Exception:
+                        traceback.print_exc()
+                        raise
                     _initialized = True
 
         if not super().parse_request():
