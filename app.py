@@ -141,7 +141,9 @@ class PostgresConnection:
         return self.connection.execute(self._translate_sql(sql), parameters)
 
     def executemany(self, sql: str, parameters: object) -> Any:
-        return self.connection.executemany(self._translate_sql(sql), parameters)
+        cursor = self.connection.cursor()
+        cursor.executemany(self._translate_sql(sql), parameters)
+        return cursor
 
 
 @contextmanager

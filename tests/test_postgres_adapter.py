@@ -1,5 +1,6 @@
 import unittest
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import app
 
@@ -35,6 +36,25 @@ class PostgresAdapterTests(unittest.TestCase):
     def test_postgres_row_factory_handles_statements_without_results(self):
         make_row = app.postgres_row_factory(SimpleNamespace(description=None))
         self.assertEqual(make_row((1, 2)), (1, 2))
+
+    def test_executemany_uses_postgres_cursor(self):
+        connection = Mock()
+        cursor = connection.cursor.return_value
+        db = app.PostgresConnection(connection)
+        parameters = [("Time",)]
+
+        result = db.executemany(
+            "INSERT OR IGNORE INTO teams(name) VALUES (?)",
+            parameters,
+        )
+
+        connection.cursor.assert_called_once_with()
+        cursor.executemany.assert_called_once_with(
+            "INSERT INTO teams(name) VALUES (%s) ON CONFLICT DO NOTHING",
+            parameters,
+        )
+        connection.executemany.assert_not_called()
+        self.assertIs(result, cursor)
 
 
 if __name__ == "__main__":
