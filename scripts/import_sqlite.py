@@ -21,9 +21,9 @@ TABLES = (
     "payments",
     "winner_verifications",
     "prize_payouts",
-    "sessions",
 )
 IDENTITY_TABLES = ("users", "rounds", "matches", "teams")
+EMPTY_CHECK_TABLES = (*TABLES, "sessions")
 
 
 def main() -> int:
@@ -46,11 +46,12 @@ def main() -> int:
         source.row_factory = sqlite3.Row
         counts = {
             table: source.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-            for table in TABLES
+            for table in EMPTY_CHECK_TABLES
         }
         print("Registros no SQLite local:")
         for table, count in counts.items():
-            print(f"  {table}: {count}")
+            suffix = " (não serão importadas)" if table == "sessions" else ""
+            print(f"  {table}: {count}{suffix}")
 
         if not args.apply:
             print("Nenhum dado foi escrito. Revise as contagens e use --apply.")
@@ -62,7 +63,7 @@ def main() -> int:
                 table: destination.execute(
                     f"SELECT COUNT(*) FROM {table}"
                 ).fetchone()[0]
-                for table in TABLES
+                for table in EMPTY_CHECK_TABLES
             }
             nonempty = [table for table, count in existing.items() if count]
             if nonempty:
