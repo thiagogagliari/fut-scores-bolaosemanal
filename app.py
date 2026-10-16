@@ -101,6 +101,8 @@ class PostgresRow(dict[str, object]):
 
 
 def postgres_row_factory(cursor: Any) -> Any:
+    if cursor.description is None:
+        return lambda values: values
     columns = [column.name for column in cursor.description]
     return lambda values: PostgresRow(zip(columns, values))
 

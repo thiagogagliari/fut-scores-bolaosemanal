@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 
 import app
 
@@ -30,6 +31,10 @@ class PostgresAdapterTests(unittest.TestCase):
         self.assertEqual(row["id"], 42)
         self.assertEqual(row[0], 42)
         self.assertEqual(row[1], "Time")
+
+    def test_postgres_row_factory_handles_statements_without_results(self):
+        make_row = app.postgres_row_factory(SimpleNamespace(description=None))
+        self.assertEqual(make_row((1, 2)), (1, 2))
 
 
 if __name__ == "__main__":
